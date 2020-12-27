@@ -26,14 +26,14 @@ type server struct {
 
 func (s *server) Get(ctx context.Context,
 	in *pb.GetReq) (*pb.GetRes, error) {
-        log.Printf("Received Get(key=%s)", in.Key)
+	log.Printf("Received Get(key=%s)", in.Key)
 	val, err := state.KVStoreInstance.Get(in.Key)
 	return &pb.GetRes{Val: val, Err: &err}, nil
 }
 
 func (s *server) Put(ctx context.Context,
 	in *pb.PutReq) (*pb.PutRes, error) {
-        log.Printf("Received Put(key=%s, val=%s)", in.Key, in.Val)
+	log.Printf("Received Put(key=%s, val=%s)", in.Key, in.Val)
 	err := state.KVStoreInstance.Put(in.Key, in.Val)
 	return &pb.PutRes{Err: &err}, nil
 }

@@ -1,4 +1,6 @@
-all: kvstore cli
+all: fmt kvstore cli
+
+fmt:
 	gofmt -w .
 
 kvstore: gen-protos
