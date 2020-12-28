@@ -7,6 +7,7 @@ import (
 	"google.golang.org/grpc"
 	"testing"
 	"time"
+	"math/rand"
 )
 
 // These tests assume the kvstore server is running
@@ -48,7 +49,7 @@ func TestGetAndPut(t *testing.T) {
 	}
 }
 
-func BenchmarkPut(b *testing.B) {
+func BenchmarkPutSequential(b *testing.B) {
 	ctx, cancel, client, conn, err := connectToKVStore()
 	if err != nil {
 		b.Fatalf("Issue connecting to kvstore: %s", err)
@@ -64,3 +65,21 @@ func BenchmarkPut(b *testing.B) {
 		}
 	}
 }
+
+func BenchmarkGetSequential(b *testing.B) {
+	ctx, cancel, client, conn, err := connectToKVStore()
+	if err != nil {
+		b.Fatalf("Issue connecting to kvstore: %s", err)
+	}
+	defer cancel()
+	defer conn.Close()
+	b.ResetTimer()
+	for n := 0; n < b.N; n++ {
+		putReq := &pb.PutReq{Key: fmt.Sprintf("k%d", n), Val: fmt.Sprintf("v%d", n)}
+		_, err = client.Put(ctx, putReq)
+		if err != nil {
+			b.Fatalf("Issue executing put: %s", err)
+		}
+	}
+}
+
