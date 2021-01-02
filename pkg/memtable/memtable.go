@@ -9,9 +9,10 @@ import (
 )
 
 type Memtable struct {
-	capacity int     // unbounded capacity is represented by -1
+	capacity int     // unbounded capacity is represented by -1. otherwise, capacity must be positive
 	size     int     // number of keys stored in tree
 	root     *RbNode // root of rb tree
+	sentinel *RbNode
 }
 
 type RbNode struct {
@@ -23,14 +24,21 @@ type RbNode struct {
 	val   string
 }
 
-func (memt *Memtable) Init(capacity int) {
+func (memt *Memtable) Init(capacity int) (err error) {
+	if capacity < 0 && capacity != -1 {
+		return errors.New("Capacity must either be a positive integer, or -1 to represent an unbounded capacity.")
+	}
 	memt.capacity = capacity
+	memt.sentinel = &RbNode{color: true} // sentinel node is always colored black
+	memt.root = memt.sentinel
+	return nil
 }
 
 func (memt *Memtable) Lookup(key string) (val string, err error) {
 	// Standard BST read
 	curr := memt.root
-	for curr != nil {
+
+	for curr != memt.sentinel {
 		if key == curr.key {
 			return curr.val, nil
 		} else if key < curr.key {
@@ -44,33 +52,37 @@ func (memt *Memtable) Lookup(key string) (val string, err error) {
 
 func (memt *Memtable) Insert(key string, val string) error {
 	// Standard BST Insertion followed by restoration of RB properties
+	newNode := &RbNode{color: false, key: key, val: val, l: memt.sentinel, r: memt.sentinel}
 
-	if memt.root == nil {
+	if memt.root == memt.sentinel {
 		// Empty tree case
-		memt.root = &RbNode{color: true, key: key, val: val}
+		memt.root = newNode
+		memt.root.color = true // set root to black
+		memt.size++
 		return nil
 	}
 
-	newNode := &RbNode{color: false, key: key, val: val}
-
 	curr := memt.root
-	for curr != nil {
+	for curr != memt.sentinel {
 		if key == curr.key {
 			// Overwrite the value of the key if it already exists in the tree
-			// Bypasses capacity check at end of function because we overwrite existing node.
 			curr.val = val
 			return nil
 		} else if key < curr.key {
-			if curr.l == nil {
+			if curr.l == memt.sentinel {
+				// Insert as left child
 				curr.l = newNode
 				newNode.p = curr
+				break
 			} else {
 				curr = curr.l
 			}
 		} else {
-			if curr.r == nil {
+			if curr.r == memt.sentinel {
+				// Insert as right child
 				curr.r = newNode
 				newNode.p = curr
+				break
 			} else {
 				curr = curr.r
 			}
@@ -78,49 +90,74 @@ func (memt *Memtable) Insert(key string, val string) error {
 	}
 
 	if memt.size == memt.capacity {
-		return errors.New(fmt.Sprintf("Cannot insert (key=%s, val=%s), because at capacity=%d", key, val, memt.capacity))
+		return errors.New(fmt.Sprintf(`Cannot insert new key="%s" because at capacity=%d`, key, memt.capacity))
 	}
 
-	memt.insertionFixup(newNode)
 	memt.size++
+	memt.insertionFixup(newNode)
 	return nil
 }
 
 func (memt *Memtable) leftRotate(curr *RbNode) {
 	// Left rotate curr by shifting it down and left,
 	// and bringing it's right child to its' place.
-	if curr.r == nil || curr.l == nil {
+	if curr.r == memt.sentinel {
+		// sentinel nodes cannot become internal nodes
 		return
 	}
 
-	curr.r.p = curr.p // curr's right child's parent is now curr's parent
-	curr.p = curr.r   // curr's parent is now curr's right child
-	curr.r = curr.r.l // curr's right child is now it's original right child's left subtree
-	curr.r.l = curr   // curr's right child's left child now points to curr
+	if curr.p == nil {
+		// reassign root
+		memt.root = curr.r
+	} else {
+		// adjust the appropriate child pointer
+		// of curr's parent
+		if curr.p.l == curr {
+			curr.p.l = curr.r
+		} else {
+			curr.p.r = curr.r
+		}
+	}
+
+	// shift curr and it's right child
+	originalRight := curr.r
+	originalRightsLeftChild := curr.r.l
+	originalRight.p = curr.p
+	curr.p = originalRight
+	curr.r.l = curr
+	curr.r = originalRightsLeftChild
+	originalRightsLeftChild.p = curr
 }
 
 func (memt *Memtable) rightRotate(curr *RbNode) {
-	// Right rotate curr by shifting it down and right,
-	// and bringing it's left child to its' place.
-	// Symmetrical to leftRotate with left and right swapped.
-	if curr.r == nil || curr.l == nil {
+	// Symmetric to leftRotate with left and right swapped.
+	if curr.l == memt.sentinel {
 		return
 	}
 
-	curr.l.p = curr.p
-	curr.p = curr.l
-	curr.l = curr.l.r
-	curr.l.r = curr
+	if curr.p == nil {
+		memt.root = curr.l
+	} else {
+		if curr.p.r == curr {
+			curr.p.r = curr.l
+		} else {
+			curr.p.l = curr.l
+		}
+	}
+
+	originalLeft := curr.l
+	originalLeftsRightChild := curr.l.r
+	originalLeft.p = curr.p
+	curr.p = originalLeft
+	originalLeft.r = curr
+	curr.l = originalLeftsRightChild
+	originalLeftsRightChild.p = curr
 }
 
 func (memt *Memtable) insertionFixup(curr *RbNode) {
 	// Restore RB properties after insertion via repeated recolorings and rotations
 	// until we reach the root of the tree, or the parent is black
-	if curr == nil {
-		return
-	}
-
-	for curr.p.color && curr.p != nil {
+	for curr.p != nil && !curr.p.color {
 		// curr's parent is red, we need to restore [red node --> black child] property.
 		// we know the parent is not the root, because the root is always black.
 		if curr.p.p.l == curr.p {
@@ -133,6 +170,7 @@ func (memt *Memtable) insertionFixup(curr *RbNode) {
 				curr.p.p.color = false
 				curr = curr.p.p
 			} else {
+				// uncle is black
 				if curr.p.r == curr {
 					// curr is parent's right child --> make curr point to curr's parent, and
 					// perform left rotation on parent.
@@ -154,7 +192,7 @@ func (memt *Memtable) insertionFixup(curr *RbNode) {
 			}
 		} else {
 			// parent is right child of grandparent. This case is symmetrical
-			// to the corresponding if stmt above, with left and right reversed.
+			// to the corresponding if stmt above, with left and right swapped.
 			if !curr.p.p.l.color {
 				curr.p.p.l.color = true
 				curr.p.color = true
