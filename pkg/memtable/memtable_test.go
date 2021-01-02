@@ -8,7 +8,7 @@ import (
 )
 
 type rbPathEntry struct {
-	node *RbNode
+	node        *RbNode
 	blackLength int //excludes the color of the stored node
 }
 
@@ -47,7 +47,7 @@ func checkBstPropertiesHelper(t *testing.T, node *RbNode) (treeMax string, treeM
 	if leftSubtreeMax != "" && node.key < leftSubtreeMax {
 		t.Fatalf("Found node with key=%s with a left subtree that contains a greater key=%s", node.key, leftSubtreeMax)
 	} else if rightSubtreeMin != "" && node.key > rightSubtreeMin {
-		t.Fatalf("Found node with key=%s with a right subtree that contains a lesser key=%s", node.key, rightSubtreeMin)		
+		t.Fatalf("Found node with key=%s with a right subtree that contains a lesser key=%s", node.key, rightSubtreeMin)
 	}
 	treeMax = rightSubtreeMax
 	treeMin = leftSubtreeMin
@@ -57,7 +57,7 @@ func checkBstPropertiesHelper(t *testing.T, node *RbNode) (treeMax string, treeM
 	if treeMax == "" {
 		treeMax = node.key
 	}
-	return 
+	return
 }
 
 func checkRbProperties(t *testing.T, memt *Memtable) {
