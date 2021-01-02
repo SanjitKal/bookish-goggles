@@ -1,4 +1,5 @@
-// Simple cli to interact with a kvstore node over http.
+// Simple cli to interact with a kvstore node, which uses grpc internally.
+// This is a tool for exploring the functionality of the kvstore, not for stress testing it.
 package cli
 
 import (

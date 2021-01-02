@@ -28,7 +28,9 @@ message Error {
 
   enum Type {
     NO_ERROR = 0;
-    KEY_NOT_FOUND = 1;
+    GET_ERROR = 1;
+    PUT_ERROR = 2;
+    DEL_ERROR = 3;
   }
 
   Type type = 1;

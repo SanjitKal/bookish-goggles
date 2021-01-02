@@ -4,7 +4,7 @@ package lsm
 
 type LogStructuredMergeTree struct {
 	capacity int
-	size int
+	size     int
 	// store levels of files
 }
 

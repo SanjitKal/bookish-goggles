@@ -7,7 +7,6 @@ import (
 	"google.golang.org/grpc"
 	"testing"
 	"time"
-	"math/rand"
 )
 
 // These tests assume the kvstore server is running
@@ -82,4 +81,3 @@ func BenchmarkGetSequential(b *testing.B) {
 		}
 	}
 }
-
