@@ -14,7 +14,7 @@ type Memtable struct {
 	size     int        // number of keys stored in tree
 	root     *RbNode    // root of rb tree
 	sentinel *RbNode    // a keyless black node, which is used to represent leaves in the rb tree
-	rwLock   sync.Mutex // coarse grained reader writer lock over tree operations
+	rwLock   sync.RWMutex // coarse grained reader writer lock to allow for multiple concurrent readers and a single writer
 }
 
 type RbNode struct {
@@ -37,6 +37,9 @@ func (memt *Memtable) Init(capacity int) (err error) {
 }
 
 func (memt *Memtable) UpdateCapacity(capacity int) error {
+	memt.rwLock.Lock()
+	defer memt.rwLock.Unlock()
+
 	if capacity < 0 && capacity != -1 {
 		return errors.New("Capacity must either be a positive integer, or -1 to represent an unbounded capacity.")
 	}
@@ -46,6 +49,9 @@ func (memt *Memtable) UpdateCapacity(capacity int) error {
 
 func (memt *Memtable) Lookup(key string) (val string, err error) {
 	// Standard BST read
+	memt.rwLock.RLock()
+	defer memt.rwLock.RUnlock()
+
 	curr := memt.root
 
 	for curr != memt.sentinel {
@@ -62,6 +68,9 @@ func (memt *Memtable) Lookup(key string) (val string, err error) {
 
 func (memt *Memtable) Insert(key string, val string) error {
 	// Standard BST Insertion followed by restoration of RB properties
+	memt.rwLock.Lock()
+	defer memt.rwLock.Unlock()
+
 	newNode := &RbNode{color: false, key: key, val: val, l: memt.sentinel, r: memt.sentinel}
 
 	if memt.root == memt.sentinel {
@@ -240,6 +249,9 @@ func (memt *Memtable) GetSortedEntriesByKey() (keyArr []string, valArr []string)
 	// Returns sorted key entries (in lexicographically ascending order)
 	// and corresponding value entries: (keyArr[i], valArr[i]) represents
 	// a single kv pair.
+	memt.rwLock.RLock()
+	defer memt.rwLock.RUnlock()
+
 	keyArr = make([]string, memt.GetSize())
 	valArr = make([]string, memt.GetSize())
 	memt.getSortedEntriesByKeyHelper(memt.root, keyArr, valArr, 0)
@@ -248,14 +260,23 @@ func (memt *Memtable) GetSortedEntriesByKey() (keyArr []string, valArr []string)
 
 func (memt *Memtable) Clear() {
 	// Free the memory allocated to store the entries in the rb tree.
+	memt.rwLock.Lock()
+	defer memt.rwLock.Unlock()
+
 	memt.size = 0
 	memt.root = memt.sentinel
 }
 
 func (memt *Memtable) GetSize() (size int) {
+	memt.rwLock.RLock()
+	defer memt.rwLock.RUnlock()
+
 	return memt.size
 }
 
 func (memt *Memtable) GetCapacity() (cap int) {
+	memt.rwLock.RLock()
+	defer memt.rwLock.RUnlock()
+
 	return memt.capacity
 }
