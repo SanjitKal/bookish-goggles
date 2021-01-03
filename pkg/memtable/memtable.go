@@ -6,13 +6,15 @@ package memtable
 import (
 	"errors"
 	"fmt"
+	"sync"
 )
 
 type Memtable struct {
-	capacity int     // unbounded capacity is represented by -1. otherwise, capacity must be positive
-	size     int     // number of keys stored in tree
-	root     *RbNode // root of rb tree
-	sentinel *RbNode
+	capacity int        // unbounded capacity is represented by -1. otherwise, capacity must be positive
+	size     int        // number of keys stored in tree
+	root     *RbNode    // root of rb tree
+	sentinel *RbNode    // a keyless black node, which is used to represent leaves in the rb tree
+	rwLock   sync.Mutex // coarse grained reader writer lock over tree operations
 }
 
 type RbNode struct {
@@ -20,17 +22,25 @@ type RbNode struct {
 	l     *RbNode // left child
 	r     *RbNode // right child
 	color bool    // true if black, false if red
-	key   string
-	val   string
+	key   string  // rb node order is established using the key
+	val   string  //
 }
 
 func (memt *Memtable) Init(capacity int) (err error) {
+	err = memt.UpdateCapacity(capacity)
+	if err != nil {
+		return err
+	}
+	memt.sentinel = &RbNode{color: true} // sentinel node is always colored black
+	memt.root = memt.sentinel
+	return nil
+}
+
+func (memt *Memtable) UpdateCapacity(capacity int) error {
 	if capacity < 0 && capacity != -1 {
 		return errors.New("Capacity must either be a positive integer, or -1 to represent an unbounded capacity.")
 	}
 	memt.capacity = capacity
-	memt.sentinel = &RbNode{color: true} // sentinel node is always colored black
-	memt.root = memt.sentinel
 	return nil
 }
 
@@ -215,16 +225,31 @@ func (memt *Memtable) insertionFixup(curr *RbNode) {
 	memt.root.color = true
 }
 
-func (memt *Memtable) Delete(key string) (err error) {
-	return nil
+func (memt *Memtable) getSortedEntriesByKeyHelper(curr *RbNode, keyArr []string, valArr []string, idx int) (nextIdx int) {
+	if curr == memt.sentinel {
+		return idx
+	}
+	nextIdx = memt.getSortedEntriesByKeyHelper(curr.l, keyArr, valArr, idx)
+	keyArr[nextIdx] = curr.key
+	valArr[nextIdx] = curr.val
+	nextIdx = memt.getSortedEntriesByKeyHelper(curr.r, keyArr, valArr, nextIdx+1)
+	return nextIdx
 }
 
-func (memt *Memtable) PopMin() (key string, val string, err error) {
-	return "", "", nil
+func (memt *Memtable) GetSortedEntriesByKey() (keyArr []string, valArr []string) {
+	// Returns sorted key entries (in lexicographically ascending order)
+	// and corresponding value entries: (keyArr[i], valArr[i]) represents
+	// a single kv pair.
+	keyArr = make([]string, memt.GetSize())
+	valArr = make([]string, memt.GetSize())
+	memt.getSortedEntriesByKeyHelper(memt.root, keyArr, valArr, 0)
+	return keyArr, valArr
 }
 
-func (memt *Memtable) PopAll() (key []string, val []string, err error) {
-	return nil, nil, nil
+func (memt *Memtable) Clear() {
+	// Free the memory allocated to store the entries in the rb tree.
+	memt.size = 0
+	memt.root = memt.sentinel
 }
 
 func (memt *Memtable) GetSize() (size int) {

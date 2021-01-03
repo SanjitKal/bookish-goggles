@@ -60,6 +60,14 @@ func checkBstPropertiesHelper(t *testing.T, node *RbNode) (treeMax string, treeM
 	return
 }
 
+func checkSortedStringArr(t *testing.T, arr []string) {
+	for i := 0; i < len(arr); i++ {
+		if i > 0 && arr[i] <= arr[i-1] {
+			t.Fatalf("Found key=%s at idx %d with greater or equal key=%s at idx %d", arr[i], i, arr[i-1], i-1)
+		}
+	}
+}
+
 func checkRbProperties(t *testing.T, memt *Memtable) {
 	// Check that the root is black
 	if !memt.root.color {
@@ -151,7 +159,7 @@ func fillMemtableRandom(numElts int, memt *Memtable) (err error, keyArr []string
 func TestInsertSeqAndLookup(t *testing.T) {
 	memt := new(Memtable)
 	memt.Init(-1)
-	err, keyArr, valArr := fillMemtableSeq(3, memt)
+	err, keyArr, valArr := fillMemtableSeq(100, memt)
 	if err != nil {
 		t.Fatalf(err.Error())
 	}
@@ -171,7 +179,7 @@ func TestInsertSeqAndLookup(t *testing.T) {
 func TestInsertRandomAndLookup(t *testing.T) {
 	memt := new(Memtable)
 	memt.Init(-1)
-	err, keyArr, valArr := fillMemtableRandom(1000000, memt)
+	err, keyArr, valArr := fillMemtableRandom(100, memt)
 	t.Log("insertion sequence:", keyArr)
 	if err != nil {
 		t.Fatalf(err.Error())
@@ -195,6 +203,49 @@ func TestInsertAtCapacity(t *testing.T) {
 	err, _, _ := fillMemtableSeq(10, memt)
 	if err == nil {
 		t.Fatalf("Expected error due to insertion at capacity, but received none")
+	}
+}
+
+func TestGetSortedEntries(t *testing.T) {
+	memt := new(Memtable)
+	memt.Init(100)
+	err, _, _ := fillMemtableSeq(100, memt)
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+	sortedKeyArr, _ := memt.GetSortedEntriesByKey()
+	checkSortedStringArr(t, sortedKeyArr)
+	t.Log("sortedKeyArr:", sortedKeyArr)
+	if len(sortedKeyArr) != memt.GetSize() {
+		t.Fatalf("Expected length of sorted key array to be memtable.size=%d, but was %d", memt.GetSize(), len(sortedKeyArr))
+	}
+}
+
+func TestClear(t *testing.T) {
+	memt := new(Memtable)
+	memt.Init(10)
+	err, _, _ := fillMemtableSeq(10, memt)
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+	memt.Clear()
+	if memt.root != memt.sentinel || memt.GetSize() != 0 {
+		t.Fatalf("Expected root to be sentinel and size to be 0 after clear, but size was %d, and root's key is %s", memt.GetSize(), memt.root.key)
+	}
+}
+
+func TestUpdateCapacity(t *testing.T) {
+	memt := new(Memtable)
+	memt.Init(5)
+	err, _, _ := fillMemtableSeq(5, memt)
+	err = memt.Insert("ktest", "vtest")
+	if err == nil {
+		t.Fatalf("Expected error due to insertion at capacity, but received none")
+	}
+	memt.UpdateCapacity(6)
+	err = memt.Insert("ktest", "vtest")
+	if err != nil {
+		t.Fatalf("Received error due to insertion, but expected none because capacity was increased")
 	}
 }
 
