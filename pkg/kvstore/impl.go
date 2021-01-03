@@ -1,6 +1,7 @@
 package kvstore
 
 import (
+	"fmt"
 	lsm "github.com/bookish-goggles/pkg/lsm"
 	mem "github.com/bookish-goggles/pkg/memtable"
 	wal "github.com/bookish-goggles/pkg/wal"
@@ -16,24 +17,12 @@ type KVStore struct {
 func (kv *KVStore) Init() {
 	kv.memt = &mem.Memtable{}
 	kv.memt.Init(-1)
-	// TODO:
-	// initialize memtable instance
-	// initialize lsm instance
-	// initialize wal instance
-	// call load, which runs operations from wal
 }
 
 func (kv *KVStore) Get(key string) (string, pb.Error) {
-	// TODO:
-	// write to wal
-	// write to memtable
-	// if memtable capacity reached:
-	// write contents of memtable to lsm
-	// clear memtable
-	// clear wal
 	val, err := kv.memt.Lookup(key)
 	if err != nil {
-		return "", pb.Error{Type: pb.Error_GET_ERROR, Message: err.Error()}
+		return "", pb.Error{Type: pb.Error_GET_ERROR, Message: fmt.Sprintf(`key "%s" not found`, key)}
 	}
 	return val, pb.Error{Type: pb.Error_NO_ERROR}
 }

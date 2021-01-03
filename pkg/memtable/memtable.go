@@ -57,7 +57,7 @@ func (memt *Memtable) Lookup(key string) (val string, err error) {
 			curr = curr.r
 		}
 	}
-	return "", errors.New(fmt.Sprintf(`key, "%s" ,not found in memtable`, key))
+	return "", errors.New(fmt.Sprintf(`key, "%s",not found in memtable`, key))
 }
 
 func (memt *Memtable) Insert(key string, val string) error {
