@@ -10,10 +10,10 @@ import (
 )
 
 type Memtable struct {
-	capacity int        // unbounded capacity is represented by -1. otherwise, capacity must be positive
-	size     int        // number of keys stored in tree
-	root     *RbNode    // root of rb tree
-	sentinel *RbNode    // a keyless black node, which is used to represent leaves in the rb tree
+	capacity int          // unbounded capacity is represented by -1. otherwise, capacity must be positive
+	size     int          // number of keys stored in tree
+	root     *RbNode      // root of rb tree
+	sentinel *RbNode      // a keyless black node, which is used to represent leaves in the rb tree
 	rwLock   sync.RWMutex // coarse grained reader writer lock to allow for multiple concurrent readers and a single writer
 }
 
