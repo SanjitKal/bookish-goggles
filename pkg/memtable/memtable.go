@@ -68,6 +68,11 @@ func (memt *Memtable) Lookup(key string) (val string, err error) {
 
 func (memt *Memtable) Insert(key string, val string) error {
 	// Standard BST Insertion followed by restoration of RB properties
+
+	if memt.size == memt.capacity {
+		return errors.New(fmt.Sprintf(`Cannot insert new key="%s" because at capacity=%d`, key, memt.capacity))
+	}
+	
 	memt.rwLock.Lock()
 	defer memt.rwLock.Unlock()
 
@@ -106,10 +111,6 @@ func (memt *Memtable) Insert(key string, val string) error {
 				curr = curr.r
 			}
 		}
-	}
-
-	if memt.size == memt.capacity {
-		return errors.New(fmt.Sprintf(`Cannot insert new key="%s" because at capacity=%d`, key, memt.capacity))
 	}
 
 	memt.size++
